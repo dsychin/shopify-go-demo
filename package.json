@@ -1,0 +1,19 @@
+{
+  "name": "shopify-go-demo",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "shopify": "shopify",
+    "build": "shopify app build",
+    "dev": "shopify app dev",
+    "info": "shopify app info",
+    "generate": "shopify app generate",
+    "deploy": "shopify app deploy"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@shopify/cli": "^3.23.0",
+    "@shopify/app": "^3.23.0"
+  }
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -25,9 +26,9 @@ func main() {
 	e.Use(middleware.AddTrailingSlash())
 
 	// Routes
+	e.Static("/", "static")
 	e.GET("/auth/", auth)
 	e.GET("/callback/", authCallback)
-	e.GET("/dashboard/", dashboard)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":8080"))
@@ -36,15 +37,49 @@ func main() {
 func auth(c echo.Context) error {
 	shop := c.QueryParam("shop")
 
-	permissionUrl := fmt.Sprintf("https://%s/admin/oauth/authorize?client_id=%s&scope=read_products&redirect_uri=%s&state=mynonce", shop, os.Getenv("SHOPIFY_CLIENT_ID"), "http://localhost:8080/callback/")
+	err := verifyHmac(c.QueryParam("hmac"))
+	if err != nil {
+		return err
+	}
 
-	return c.Redirect(http.StatusTemporaryRedirect, permissionUrl)
+	permissionUrl, err := url.Parse(fmt.Sprintf("https://%s/admin/oauth/authorize", shop))
+	if err != nil {
+		return err
+	}
+	callbackUrl := fmt.Sprintf("https://%s/callback/", c.Request().Host)
+	nonce := "mynonce" // TODO: this should be generated and checked against in the callback
+	q := permissionUrl.Query()
+	q.Set("scope", "read_products")
+	q.Set("client_id", os.Getenv("SHOPIFY_CLIENT_ID"))
+	q.Set("redirect_uri", callbackUrl)
+	q.Set("nonce", nonce)
+	permissionUrl.RawQuery = q.Encode()
+
+	return c.Redirect(http.StatusTemporaryRedirect, permissionUrl.String())
 }
 
 func authCallback(c echo.Context) error {
-	return c.Redirect(http.StatusTemporaryRedirect, "/dashboard/")
+	err := verifyHmac(c.QueryParam("hmac"))
+	if err != nil {
+		return err
+	}
+
+	// TODO: set up store's account on your database
+
+	u, err := url.Parse("/")
+	if err != nil {
+		return err
+	}
+	q := u.Query()
+	q.Set("host", c.QueryParam("host"))
+	u.RawQuery = q.Encode()
+
+	return c.Redirect(http.StatusTemporaryRedirect, u.String())
 }
 
-func dashboard(c echo.Context) error {
-	return c.String(http.StatusOK, "Welcome to the dashboard!")
+func verifyHmac(hmac string) error {
+	// TODO: You will need to implement the HMAC verification logic here
+	// Refer to the documentation below
+	// https://shopify.dev/apps/auth/oauth/getting-started#step-2-verify-the-installation-request
+	return nil
 }
